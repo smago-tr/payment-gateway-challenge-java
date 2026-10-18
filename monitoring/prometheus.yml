@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: payment-gateway
+    metrics_path: /actuator/prometheus
+    # host.docker.internal is built in on Docker Desktop and Rancher Desktop; on plain Linux Docker
+    # add extra_hosts: ["host.docker.internal:host-gateway"] to the prometheus service
+    static_configs:
+      - targets: ['host.docker.internal:8090']

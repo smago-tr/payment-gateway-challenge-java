@@ -30,16 +30,29 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.MockMvcBuilderCustomizer;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
-@SpringBootTest
+@SpringBootTest(properties = "gateway.api-key=test-key")
 @AutoConfigureMockMvc
 class PaymentGatewayControllerTest {
+
+  @TestConfiguration
+  static class ApiKeyForEveryRequest {
+
+    @Bean
+    MockMvcBuilderCustomizer apiKeyHeader() {
+      return builder -> builder.defaultRequest(
+          MockMvcRequestBuilders.get("/").header("X-API-Key", "test-key"));
+    }
+  }
 
   @Autowired
   private MockMvc mvc;
@@ -270,6 +283,18 @@ class PaymentGatewayControllerTest {
         .andExpect(jsonPath("$.id").value(id))
         .andExpect(jsonPath("$.status").value("Authorized"))
         .andExpect(jsonPath("$.cardNumberLastFour").value("1111"));
+  }
+
+  @Test
+  void whenPaymentIsProcessedThenProcessedMetricIsExposed() throws Exception {
+    mvc.perform(postPaymentWith("card_number", "4111111111111111"))
+        .andExpect(status().isOk());
+
+    mvc.perform(MockMvcRequestBuilders.get("/actuator/metrics/payments.processed"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.name").value("payments.processed"))
+        .andExpect(jsonPath("$.availableTags[?(@.tag == 'status')].values[*]")
+            .value(org.hamcrest.Matchers.hasItem("AUTHORIZED")));
   }
 
   static Stream<Arguments> bankFailures() {

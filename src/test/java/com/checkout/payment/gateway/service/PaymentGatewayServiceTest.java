@@ -2,6 +2,7 @@ package com.checkout.payment.gateway.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,6 +22,7 @@ import com.checkout.payment.gateway.exception.PaymentRejectedException;
 import com.checkout.payment.gateway.model.PostPaymentRequest;
 import com.checkout.payment.gateway.model.PostPaymentResponse;
 import com.checkout.payment.gateway.repository.PaymentsRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -36,8 +38,9 @@ class PaymentGatewayServiceTest {
   private final PaymentsRepository repository = mock(PaymentsRepository.class);
   private final ExpiryDateValidator expiryDateValidator = mock(ExpiryDateValidator.class);
   private final AcquiringBankClient bankClient = mock(AcquiringBankClient.class);
+  private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
   private final PaymentGatewayService service =
-      new PaymentGatewayService(repository, expiryDateValidator, bankClient);
+      new PaymentGatewayService(repository, expiryDateValidator, bankClient, meterRegistry);
 
   @Test
   void whenProcessingPaymentThenExpiryDateIsValidated() {
@@ -107,6 +110,30 @@ class PaymentGatewayServiceTest {
         assertThrows(failure.getClass(), () -> service.processPayment(request)));
 
     verifyNoInteractions(repository);
+  }
+
+  @ParameterizedTest
+  @EnumSource(value = PaymentStatus.class, names = {"AUTHORIZED", "DECLINED"})
+  void whenPaymentIsProcessedThenProcessedCounterIsIncrementedForItsStatus(PaymentStatus status) {
+    PostPaymentRequest request = payment();
+    when(bankClient.authorize(request)).thenReturn(status);
+
+    service.processPayment(request);
+    service.processPayment(request);
+
+    assertEquals(2.0,
+        meterRegistry.get("payments.processed").tag("status", status.name()).counter().count());
+  }
+
+  @ParameterizedTest
+  @MethodSource("bankFailures")
+  void whenBankFailsThenNothingIsCounted(RuntimeException failure) {
+    PostPaymentRequest request = payment();
+    when(bankClient.authorize(request)).thenThrow(failure);
+
+    assertThrows(failure.getClass(), () -> service.processPayment(request));
+
+    assertNull(meterRegistry.find("payments.processed").counter());
   }
 
   @Test

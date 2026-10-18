@@ -6,6 +6,7 @@ import com.checkout.payment.gateway.exception.EventProcessingException;
 import com.checkout.payment.gateway.model.PostPaymentRequest;
 import com.checkout.payment.gateway.model.PostPaymentResponse;
 import com.checkout.payment.gateway.repository.PaymentsRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,12 +20,15 @@ public class PaymentGatewayService {
   private final PaymentsRepository paymentsRepository;
   private final ExpiryDateValidator expiryDateValidator;
   private final AcquiringBankClient bankClient;
+  private final MeterRegistry meterRegistry;
 
   public PaymentGatewayService(PaymentsRepository paymentsRepository,
-      ExpiryDateValidator expiryDateValidator, AcquiringBankClient bankClient) {
+      ExpiryDateValidator expiryDateValidator, AcquiringBankClient bankClient,
+      MeterRegistry meterRegistry) {
     this.paymentsRepository = paymentsRepository;
     this.expiryDateValidator = expiryDateValidator;
     this.bankClient = bankClient;
+    this.meterRegistry = meterRegistry;
   }
 
   public PostPaymentResponse getPaymentById(UUID id) {
@@ -38,6 +42,7 @@ public class PaymentGatewayService {
 
     PostPaymentResponse payment = toPayment(paymentRequest, status);
     paymentsRepository.add(payment);
+    meterRegistry.counter("payments.processed", "status", status.name()).increment();
     LOG.info("Payment {} processed with status {}", payment.getId(), status);
     return payment;
   }
