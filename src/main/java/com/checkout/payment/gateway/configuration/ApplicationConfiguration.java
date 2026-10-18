@@ -1,6 +1,10 @@
 package com.checkout.payment.gateway.configuration;
 
+import com.fasterxml.jackson.databind.cfg.CoercionAction;
+import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
+import com.fasterxml.jackson.databind.type.LogicalType;
 import java.time.Duration;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,5 +19,15 @@ public class ApplicationConfiguration {
         .setConnectTimeout(Duration.ofMillis(10000))
         .setReadTimeout(Duration.ofMillis(10000))
         .build();
+  }
+
+  // A JSON number cannot carry leading zeros, so numbers are not accepted for text fields.
+  // Ignoring this will make CVV 0123 int 123 which would pass validation but is otherwise incorrect
+  @Bean
+  public Jackson2ObjectMapperBuilderCustomizer strictTextFields() {
+    return builder -> builder.postConfigurer(mapper ->
+        mapper.coercionConfigFor(LogicalType.Textual)
+            .setCoercion(CoercionInputShape.Integer, CoercionAction.Fail)
+            .setCoercion(CoercionInputShape.Float, CoercionAction.Fail));
   }
 }

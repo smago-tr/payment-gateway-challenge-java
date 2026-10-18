@@ -13,8 +13,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -183,6 +186,26 @@ class PaymentGatewayControllerTest {
   void whenCurrencyIsSupportedThenPaymentIsNotRejected(String currency) throws Exception {
     mvc.perform(postPaymentWith("currency", currency))
         .andExpect(status().isOk());
+  }
+
+  // -------------------- Strict parsing ---------------------------
+
+  static Stream<Arguments> wronglyTypedFields() {
+    return Stream.of(
+        Arguments.of("amount", 10.5),
+        Arguments.of("amount", 3_000_000_000L),
+        Arguments.of("amount", "100"),
+        Arguments.of("expiry_month", "12"),
+        Arguments.of("expiry_year", 2099.5),
+        Arguments.of("cvv", 123),
+        Arguments.of("card_number", 4111111111111111L));
+  }
+
+  @ParameterizedTest(name = "{0} = {1}")
+  @MethodSource("wronglyTypedFields")
+  void whenFieldHasWrongTypeThenPaymentIsRejected(String field, Object value) throws Exception {
+    mvc.perform(postPaymentWith(field, value))
+        .andExpect(status().isBadRequest());
   }
 
   private MockHttpServletRequestBuilder postPaymentWith(String field, Object value)
