@@ -49,6 +49,28 @@ public class CommonExceptionHandler {
     return paymentRejected(ex.getErrors());
   }
 
+  @ExceptionHandler(BankUnavailableException.class)
+  public ResponseEntity<ErrorResponse> handleBankUnavailable(BankUnavailableException ex) {
+    LOG.error("Bank unavailable", ex);
+    return new ResponseEntity<>(
+        new ErrorResponse("The bank is unavailable, please try again in a few minutes"),
+        HttpStatus.BAD_GATEWAY);
+  }
+
+  @ExceptionHandler(BankTimeoutException.class)
+  public ResponseEntity<ErrorResponse> handleBankTimeout(BankTimeoutException ex) {
+    LOG.error("Bank timed out", ex);
+    return new ResponseEntity<>(new ErrorResponse("The bank did not respond in time"),
+        HttpStatus.GATEWAY_TIMEOUT);
+  }
+
+  @ExceptionHandler(BankErrorException.class)
+  public ResponseEntity<ErrorResponse> handleBankError(BankErrorException ex) {
+    LOG.error("Bank returned an unusable response", ex);
+    return new ResponseEntity<>(new ErrorResponse("Could not process the payment"),
+        HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
   private ResponseEntity<ErrorResponse> paymentRejected(List<ErrorResponse.FieldError> errors) {
     return new ResponseEntity<>(new ErrorResponse("Payment rejected", errors),
         HttpStatus.BAD_REQUEST);

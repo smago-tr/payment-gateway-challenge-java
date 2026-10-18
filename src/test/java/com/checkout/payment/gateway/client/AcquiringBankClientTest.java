@@ -2,16 +2,23 @@ package com.checkout.payment.gateway.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.springframework.test.web.client.ExpectedCount.times;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.checkout.payment.gateway.enums.PaymentStatus;
 import com.checkout.payment.gateway.exception.BankErrorException;
+import com.checkout.payment.gateway.exception.BankTimeoutException;
+import com.checkout.payment.gateway.exception.BankUnavailableException;
 import com.checkout.payment.gateway.model.PostPaymentRequest;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -31,7 +38,7 @@ class AcquiringBankClientTest {
 
   private final RestTemplate restTemplate = new RestTemplate();
   private final MockRestServiceServer bank = MockRestServiceServer.bindTo(restTemplate).build();
-  private final AcquiringBankClient client = new AcquiringBankClient(restTemplate, BANK_URL);
+  private final AcquiringBankClient client = new AcquiringBankClient(restTemplate, BANK_URL, Duration.ZERO);
 
   @Test
   void whenBankAuthorizesThenStatusIsAuthorized() {
@@ -83,6 +90,60 @@ class AcquiringBankClientTest {
         .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
 
     assertThrows(BankErrorException.class, () -> client.authorize(payment()));
+  }
+
+  // -------------------- Failures and retries ---------------------------
+
+  @Test
+  void whenBankIsUnavailableOnEveryAttemptThenItIsCalledThreeTimesAndUnavailableIsThrown() {
+    bank.expect(times(3), requestTo(BANK_URL + "/payments"))
+        .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+
+    assertThrows(BankUnavailableException.class, () -> client.authorize(payment()));
+
+    bank.verify();
+  }
+
+  @Test
+  void whenBankIsUnavailableOnceThenTheRetrySucceeds() {
+    bank.expect(requestTo(BANK_URL + "/payments"))
+        .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+    bank.expect(requestTo(BANK_URL + "/payments"))
+        .andRespond(withSuccess(AUTHORIZED_BODY, MediaType.APPLICATION_JSON));
+
+    assertEquals(PaymentStatus.AUTHORIZED, client.authorize(payment()));
+
+    bank.verify();
+  }
+
+  @Test
+  void whenConnectionIsRefusedThenItIsRetriedAndUnavailableIsThrown() {
+    bank.expect(times(3), requestTo(BANK_URL + "/payments"))
+        .andRespond(withException(new ConnectException("Connection refused")));
+
+    assertThrows(BankUnavailableException.class, () -> client.authorize(payment()));
+
+    bank.verify();
+  }
+
+  @Test
+  void whenBankTimesOutThenItIsNotRetriedAndTimeoutIsThrown() {
+    bank.expect(requestTo(BANK_URL + "/payments"))
+        .andRespond(withException(new SocketTimeoutException("Read timed out")));
+
+    assertThrows(BankTimeoutException.class, () -> client.authorize(payment()));
+
+    bank.verify();
+  }
+
+  @Test
+  void whenBankFailsWithOtherServerErrorThenItIsNotRetried() {
+    bank.expect(requestTo(BANK_URL + "/payments"))
+        .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+
+    assertThrows(BankErrorException.class, () -> client.authorize(payment()));
+
+    bank.verify();
   }
 
   private PostPaymentRequest payment() {

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.type.LogicalType;
 import java.time.Clock;
 import java.time.Duration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
@@ -15,12 +16,15 @@ import org.springframework.web.client.RestTemplate;
 public class ApplicationConfiguration {
 
   @Bean
-  public RestTemplate restTemplate(RestTemplateBuilder builder) {
+  public RestTemplate restTemplate(RestTemplateBuilder builder,
+      @Value("${bank.connect-timeout}") Duration connectTimeout,
+      @Value("${bank.read-timeout}") Duration readTimeout) {
     return builder
-        .setConnectTimeout(Duration.ofMillis(10000))
-        .setReadTimeout(Duration.ofMillis(10000))
+        .setConnectTimeout(connectTimeout)
+        .setReadTimeout(readTimeout)
         .build();
   }
+
 
   @Bean
   public Clock clock() {
