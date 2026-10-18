@@ -3,6 +3,7 @@ package com.checkout.payment.gateway.configuration;
 import com.fasterxml.jackson.databind.cfg.CoercionAction;
 import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.type.LogicalType;
+import java.time.Clock;
 import java.time.Duration;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -19,6 +20,11 @@ public class ApplicationConfiguration {
         .setConnectTimeout(Duration.ofMillis(10000))
         .setReadTimeout(Duration.ofMillis(10000))
         .build();
+  }
+
+  @Bean
+  public Clock clock() {
+    return Clock.systemUTC();
   }
 
   // A JSON number cannot carry leading zeros, so numbers are not accepted for text fields.

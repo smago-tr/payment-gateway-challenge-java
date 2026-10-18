@@ -15,9 +15,12 @@ public class PaymentGatewayService {
   private static final Logger LOG = LoggerFactory.getLogger(PaymentGatewayService.class);
 
   private final PaymentsRepository paymentsRepository;
+  private final ExpiryDateValidator expiryDateValidator;
 
-  public PaymentGatewayService(PaymentsRepository paymentsRepository) {
+  public PaymentGatewayService(PaymentsRepository paymentsRepository,
+      ExpiryDateValidator expiryDateValidator) {
     this.paymentsRepository = paymentsRepository;
+    this.expiryDateValidator = expiryDateValidator;
   }
 
   public PostPaymentResponse getPaymentById(UUID id) {
@@ -26,6 +29,7 @@ public class PaymentGatewayService {
   }
 
   public UUID processPayment(PostPaymentRequest paymentRequest) {
+    expiryDateValidator.validate(paymentRequest);
     return UUID.randomUUID();
   }
 }

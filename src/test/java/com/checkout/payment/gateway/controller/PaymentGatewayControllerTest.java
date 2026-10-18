@@ -188,6 +188,17 @@ class PaymentGatewayControllerTest {
         .andExpect(status().isOk());
   }
 
+  // -------------------- Validate expiry is in the future ---------------------------
+
+  @Test
+  void whenCardHasExpiredThenRejectedWithExpiryMonthError() throws Exception {
+    mvc.perform(postPaymentWith("expiry_year", 2000))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Payment rejected"))
+        .andExpect(jsonPath("$.errors[*].field").value(contains("expiry_month")))
+        .andExpect(jsonPath("$.errors[0].message").value("expiry date must be in the future"));
+  }
+
   // -------------------- Strict parsing ---------------------------
 
   static Stream<Arguments> wronglyTypedFields() {

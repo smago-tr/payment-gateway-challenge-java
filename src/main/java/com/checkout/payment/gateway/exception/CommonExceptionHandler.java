@@ -34,13 +34,23 @@ public class CommonExceptionHandler {
             SNAKE_CASE.translate(error.getField()),
             error.getDefaultMessage()))
         .toList();
-    return new ResponseEntity<>(new ErrorResponse("Payment rejected", errors),
-        HttpStatus.BAD_REQUEST);
+    return paymentRejected(errors);
   }
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
     return new ResponseEntity<>(new ErrorResponse("Request body is missing or malformed"),
+        HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(PaymentRejectedException.class)
+  public ResponseEntity<ErrorResponse> handlePaymentRejectedException(
+      PaymentRejectedException ex) {
+    return paymentRejected(ex.getErrors());
+  }
+
+  private ResponseEntity<ErrorResponse> paymentRejected(List<ErrorResponse.FieldError> errors) {
+    return new ResponseEntity<>(new ErrorResponse("Payment rejected", errors),
         HttpStatus.BAD_REQUEST);
   }
 }
