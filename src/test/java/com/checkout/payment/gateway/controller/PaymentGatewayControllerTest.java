@@ -82,7 +82,15 @@ class PaymentGatewayControllerTest {
   void whenPaymentWithIdDoesNotExistThen404IsReturned() throws Exception {
     mvc.perform(MockMvcRequestBuilders.get("/payment/" + UUID.randomUUID()))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Page not found"));
+        .andExpect(jsonPath("$.message").value("Payment not found"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"not-a-uuid", "123", "12345678-1234-1234-1234-12345678901g"})
+  void whenPaymentIdIsNotAValidUuidThen400IsReturned(String id) throws Exception {
+    mvc.perform(MockMvcRequestBuilders.get("/payment/" + id))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Invalid payment id"));
   }
 
 

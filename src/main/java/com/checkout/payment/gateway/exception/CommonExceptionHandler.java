@@ -11,6 +11,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @ControllerAdvice
 public class CommonExceptionHandler {
@@ -21,8 +22,15 @@ public class CommonExceptionHandler {
   @ExceptionHandler(EventProcessingException.class)
   public ResponseEntity<ErrorResponse> handleException(EventProcessingException ex) {
     LOG.error("Exception happened", ex);
-    return new ResponseEntity<>(new ErrorResponse("Page not found"),
+    return new ResponseEntity<>(new ErrorResponse("Payment not found"),
         HttpStatus.NOT_FOUND);
+  }
+
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidPaymentId(
+      MethodArgumentTypeMismatchException ex) {
+    return new ResponseEntity<>(new ErrorResponse("Invalid payment id"),
+        HttpStatus.BAD_REQUEST);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
