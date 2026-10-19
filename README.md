@@ -107,10 +107,25 @@ For getting payment details (2nd requirement):
 - Amount : **represent in minor currency unit, $0.01 would be supplied as 1
 
 
+------
+# Packaging and deployment
+
+- **Packaging:** `./gradlew bootJar` builds one executable jar. The service is stateless, so it fits a container (no Dockerfile is included for the gateway itself)
+- **Configuration:** the bank URL, timeouts, retry backoff and API key are all properties, so they can be set per environment through environment variables, for example `BANK_URL` and `GATEWAY_API_KEY`, with no rebuild. 
+  - The API key in `application.properties` is a dummy value
+- **Where I would host it:** as a container on Kubernetes behind a load balancer or API gateway that terminates TLS. `/actuator/health` is open for health checks, and Prometheus scrapes `/actuator/prometheus`
+
+Needed before production:
+- A real database. The in-memory store means each replica holds different payments and a restart loses them, so it can only run as a single instance today
+- API keys from a secrets store, one per merchant, resolved to a merchant id
+- Idempotency keys, so a retried request cannot charge twice
+- Graceful shutdown and separate liveness and readiness probes, so in-flight payments finish during a deploy
+- A CI pipeline: build, test, build the image, scan it, deploy. Rate limiting at the gateway
 
 ------
 ## Future improvements
 Things to consider later:
+- Add load balancer for our gateway to manage incoming requests
 - Throttling when calling Banking application
 - DB locking or making it transactional + Outbox
 - Idempotency with Merchant_id 
