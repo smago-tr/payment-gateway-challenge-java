@@ -40,7 +40,7 @@ public class AcquiringBankClient {
     LOG.info ("Calling Bank for payment processing");
 
     if (response == null || response.authorized() == null) {
-      throw new BankErrorException("Bank response did not say whether the payment was authorized");
+      throw new BankErrorException("Bank response did not say whether the payment was authorized"); //500
     }
     return response.authorized() ? PaymentStatus.AUTHORIZED : PaymentStatus.DECLINED;
   }
@@ -53,13 +53,13 @@ public class AcquiringBankClient {
             BankPaymentResponse.class);
       } catch (RestClientException e) {
         if (isTimeout(e)) {
-          throw new BankTimeoutException("Bank call timed out", e);
+          throw new BankTimeoutException("Bank call timed out", e); //504
         }
         if (!isSafeToRetry(e)) {
-          throw new BankErrorException("Bank call failed", e);
+          throw new BankErrorException("Bank call failed", e); //500
         }
         if (attempt == MAX_ATTEMPTS) {
-          throw new BankUnavailableException("Bank unavailable after " + attempt + " attempts", e);
+          throw new BankUnavailableException("Bank unavailable after " + attempt + " attempts", e); //502
         }
         LOG.warn("Bank unavailable on attempt {}, retrying in {}", attempt, backoff);
         pause(backoff, e);

@@ -13,24 +13,29 @@ public class PostPaymentRequest implements Serializable {
   @NotNull
   @JsonProperty("card_number")
   @Pattern(regexp = "[0-9]{14,19}", message = "must be 14 to 19 digits")
-  // Changes to integer as int only allows 10 digits max and crops zeros
+  // Changed to integer as int only allows 10 digits max and crops zeros
   private String cardNumber;
+
   @NotNull
   @JsonProperty("expiry_month")
   @Min(value = 1, message = "must be between 1 and 12")
   @Max(value = 12, message = "must be between 1 and 12")
-  // Changes to integer as int so a missing value is null not 0
+  // Changed to integer as int so a missing value is null not 0
   private Integer expiryMonth;
+
   @NotNull
   @JsonProperty("expiry_year")
   private Integer expiryYear;
+
   @NotNull
   // USD, EUR, GBP
   @Pattern(regexp = "GBP|EUR|USD", message = "must be one of GBP, EUR, USD")
   private String currency;
+
   @NotNull
   @Min(value = 1, message = "must be at least 1")
   private Integer amount;
+
   @NotNull
   @Pattern(regexp = "[0-9]{3,4}", message = "must be 3 to 4 digits")
   private String cvv;
